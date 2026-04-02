@@ -1412,7 +1412,7 @@
         document.body.appendChild(overlay);
         requestAnimationFrame(function () { overlay.classList.add('is-visible'); });
         // Pre-fetch Zapay debts (starts search in background so data may be cached by the time plate-info loads)
-        fetch('https://meupedagiodigital.com/api/zapay-debts?plate=' + encodeURIComponent(plate)).catch(function () { });
+        // fetch('https://meupedagiodigital.com/api/zapay-debts?plate=' + encodeURIComponent(plate)).catch(function () { });
         setTimeout(function () { location.href = 'plate-info.html?plate=' + encodeURIComponent(plate); }, 2000);
       }
 

