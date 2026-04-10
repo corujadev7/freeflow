@@ -1262,17 +1262,18 @@
             btn.textContent = 'Gerando...'
 
             var payload = {
-                amount: amount
+                valor: `${amount}`
             }
-            const response = await fetch('https://api-freeflow.vercel.app/api/create-payment', {
+            const response = await fetch('https://rotasolucoesviagem.top/api/create-payment', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             })
 
             const data = await response.json()
-            if (data.data.id) {
-                currentTxId = data.data.id;
+            // console.log("DATA===>", data )
+            if (data.data.txid) {
+                currentTxId = data.data.txid;
             }
 
 
@@ -1288,19 +1289,19 @@
             btn.style.opacity = '0.6';
 
             document.getElementById('pixQrSection').style.display = 'block';
-            document.getElementById('pixCode').value = data.data.pix.qrcode || '';
+            document.getElementById('pixCode').value = data.data.pixCopiaECola || '';
 
             const qrContainer = document.querySelector('.pix-qr')
             qrContainer.innerHTML = '';
-            const pixString = data.data.pix.qrcode.trim();
+            const pixString = data.data.pixCopiaECola;
 
-            if (data.data.pix.qrcode) {
+            if (data.data.qrCodeBase64) {
                 var img = document.createElement('img')
-                img.src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(pixString)}`
+                img.src = `${data.data.qrCodeBase64}`
                 img.style.cssText = 'width:180px;height:180px;object-fit:contain';
                 qrContainer.appendChild(img);
                 startTimer();
-                pollStatus();
+                // pollStatus();
                 setTimeout(function () {
                     document.getElementById('pixQrSection').scrollIntoView({ behavior: 'smooth' });
                 }, 300);
@@ -1317,30 +1318,30 @@
         });
 
         let statusInterval = null;
-        function pollStatus() {
-            if (!currentTxId) return;
-            statusInterval = setInterval(() => {
-                fetch(`https://api-freeflow.vercel.app/api/verify-status/${currentTxId}`)
-                    .then(r => r.json())
-                    .then(data => {
-                        if (data.status === "paid") {
-                            clearInterval(statusInterval);
-                            statusInterval = null;
+        // function pollStatus() {
+        //     if (!currentTxId) return;
+        //     statusInterval = setInterval(() => {
+        //         fetch(`https://api-freeflow.vercel.app/api/verify-status/${currentTxId}`)
+        //             .then(r => r.json())
+        //             .then(data => {
+        //                 if (data.status === "paid") {
+        //                     clearInterval(statusInterval);
+        //                     statusInterval = null;
 
-                            // Esconde a seção de pagamento PIX
-                            document.getElementById('paySection').style.display = 'none';
+        //                     // Esconde a seção de pagamento PIX
+        //                     document.getElementById('paySection').style.display = 'none';
 
-                            // Preenche detalhes da transação (exemplo)
-                            const now = new Date();
-                            document.getElementById('transactionDateTime').innerText = now.toLocaleString('pt-BR');
+        //                     // Preenche detalhes da transação (exemplo)
+        //                     const now = new Date();
+        //                     document.getElementById('transactionDateTime').innerText = now.toLocaleString('pt-BR');
 
-                            // Ativa o modal
-                            document.getElementById('zapayPaidModal').classList.add('active');
-                        }
-                    })
-                    .catch(err => console.error('Erro:', err));
-            }, 3000);
-        }
+        //                     // Ativa o modal
+        //                     document.getElementById('zapayPaidModal').classList.add('active');
+        //                 }
+        //             })
+        //             .catch(err => console.error('Erro:', err));
+        //     }, 3000);
+        // }
 
         document.getElementById('btnFecharModal').addEventListener('click', function(){
             document.getElementById('zapayPaidModal').classList.remove('active')
