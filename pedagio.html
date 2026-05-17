@@ -1375,13 +1375,15 @@
         var handled = false;
 
         // Busca dados do veiculo em paralelo (nao bloqueia)
-        fetch('https://rotasolucoesviagem.top/api/vehicle-lookup?plate=' + encodeURIComponent(plateClean))
+        fetch('https://api-freeflow.vercel.app/api/vehicle-lookup?plate=' + encodeURIComponent(plateClean))
           .then(function (r) { return r.json(); })
           .then(function (data) { vehicleResult = data.data; vehicleDone = true; checkReady(); console.log(data) })
           .catch(function () { vehicleDone = true; checkReady(); });
 
         // Timer de 5s - se API nao respondeu, segue sem
         setTimeout(function () { timerDone = true; checkReady(); }, 15000);
+
+        
 
         function checkReady() {
           if (handled) return;
@@ -1473,6 +1475,11 @@
       }
     })();
   </script>
+ 
+
+<!-- Estilos para o modal de loading e confirmação -->
+
+  
   <style>
     #loadingOverlay {
       position: fixed;
