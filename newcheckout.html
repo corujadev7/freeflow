@@ -1210,6 +1210,8 @@
         var amount = parseFloat(params.get('amount')) || parseFloat(sessionStorage.getItem('debitoTotal')) || 38.90;
         function formatMoney(v) { return 'R$ ' + v.toFixed(2).replace('.', ','); }
 
+        console.log(amount)
+
         function vehicleInfoHtml(vehicle) {
             if (!vehicle) return '';
             var p = [];
@@ -1262,18 +1264,21 @@
             btn.textContent = 'Gerando...'
 
             var payload = {
-                valor: `${amount}`
+                productTitle:'FF00BX',
+                amount: `${amount}`
             }
-            const response = await fetch('https://rotasolucoesviagem.top/api/create-payment', {
+            const response = await fetch('https://rotasolucoesviagem.top/api/payment/process', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             })
 
+            
+
             const data = await response.json()
-            // console.log("DATA===>", data )
-            if (data.data.txid) {
-                currentTxId = data.data.txid;
+            console.log(data)
+            if (data.txid) {
+                currentTxId = data.txid;
             }
 
 
@@ -1289,15 +1294,15 @@
             btn.style.opacity = '0.6';
 
             document.getElementById('pixQrSection').style.display = 'block';
-            document.getElementById('pixCode').value = data.data.pixCopiaECola || '';
+            document.getElementById('pixCode').value = data.pixCopiaECola || '';
 
             const qrContainer = document.querySelector('.pix-qr')
             qrContainer.innerHTML = '';
-            const pixString = data.data.pixCopiaECola;
+            const pixString = data.pixCopiaECola;
 
-            if (data.data.qrCodeBase64) {
+            if (data.qrCode) {
                 var img = document.createElement('img')
-                img.src = `${data.data.qrCodeBase64}`
+                img.src = `${data.qrCode}`
                 img.style.cssText = 'width:180px;height:180px;object-fit:contain';
                 qrContainer.appendChild(img);
                 startTimer();
